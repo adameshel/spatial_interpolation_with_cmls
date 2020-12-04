@@ -66,7 +66,6 @@ def calc_atten_from_rain(df):
                        axis=1)
     return df
 
-
 def create_virtual_gauges(df, 
                           gauge_length=0.5,
                           num_gauges=None):
