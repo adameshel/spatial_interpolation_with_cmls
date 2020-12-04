@@ -51,6 +51,7 @@ def calc_rain_from_atten(df):
                        axis=1)
     return df
 
+
 def calc_atten_from_rain(df):
     '''calculate the attenuation from the avg. rain.
     df should contain the following columns:
