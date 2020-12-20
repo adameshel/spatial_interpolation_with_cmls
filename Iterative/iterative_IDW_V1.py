@@ -222,7 +222,9 @@ class IdwIterative():
         self.Z = np.zeros((self.xgrid.shape[0], self.xgrid.shape[1]))
 
         # create vectors with x,y,z values of all the virtual gauges
-        self.gauges_z = np.zeros(self.use_gauges.shape)
+        # self.gauges_z = np.zeros(self.use_gauges.shape)
+        self.gauges_z = np.empty(self.use_gauges.shape)
+        self.gauges_z[:] = np.nan 
 
         for cml_index, cml in self.df.iterrows():
             gauges = cml['num_of_gauges']
@@ -401,8 +403,12 @@ class IdwIterative():
         self.max_num_of_gauges = self.df_for_dist['num_of_gauges'].max()
         self.use_gauges = np.zeros((self.num_cmls, self.max_num_of_gauges),
                                    dtype=bool)
-        self.gauges_x = np.zeros(self.use_gauges.shape) 
-        self.gauges_y = np.zeros(self.use_gauges.shape)
+        # self.gauges_x = np.zeros(self.use_gauges.shape) 
+        # self.gauges_y = np.zeros(self.use_gauges.shape)
+        self.gauges_x = np.empty(self.use_gauges.shape)
+        self.gauges_x[:] = np.nan 
+        self.gauges_y = np.empty(self.use_gauges.shape)
+        self.gauges_y[:] = np.nan
             
         for cml_index, cml in self.df_for_dist.iterrows():
             gauges = cml['num_of_gauges']
