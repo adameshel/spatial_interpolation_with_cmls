@@ -87,9 +87,7 @@ def create_virtual_gauges(df,
 
     # split each cml into several virtual rain gauges
     for i, cml in df.iterrows():
-        L = cml['L']
         if num_gauges is None:
-#            import pdb; pdb.set_trace()
             num_gauges_along_cml = int(np.ceil(L / float(gauge_length)))
 #            vrgs_per_cml = 'ed' + str(round(gauge_length,2))
             vrgs_per_cml = 'ED' + str(int(gauge_length * 1e3))
@@ -168,7 +166,8 @@ def calc_grid_weights(D, ROI, method, p_par, cml_lengths):
 
 class IdwIterative():
     def __init__(self, df_for_dist, xgrid, ygrid, ROI=0.0, max_iterations=1, 
-                 tolerance=0.0, method=0, p_par=2.0, fixed_gmz_roi=None, restrain_w=False):
+                 tolerance=0.0, method=0, p_par=2.0, fixed_gmz_roi=None, restrain_w=False,
+                 iteration0=None):
         '''ROI- Radius of Influence in meters. A parameter of IDW'''
         self.ROI = ROI
         self.ROI_gmz = ROI
@@ -176,13 +175,19 @@ class IdwIterative():
         self.tolerance = tolerance
         self.method = method # weighting method (0-shepard, 1-cressman)
         self.p_par = p_par # power parameter of IDW
-        self.df_for_dist = df_for_dist
         self.xgrid = xgrid
         self.ygrid = ygrid
         self.ROI_prev = None
         self.fixed_gmz_roi = fixed_gmz_roi
         self.restrain_w = restrain_w
+        if iteration0:
+            self._calc_iteration0()
+            # self.df_for_dist = df_it0 # Dataframe with 1vrg per link for iteration 0
+            # print('Calculating weights for Iteration Zero')
+            # self._calc_all_weights()
+
         
+        self.df_for_dist = df_for_dist
         self._calc_all_weights()
         print('Calculation of weights finished')
                 
@@ -520,19 +525,20 @@ class IdwIterative():
                 if len(weights_vector) != 0:
                     weights_vector /= weights_vector.sum(axis=None)  # Normalize
                     self.weights_vg_list.append(weights_vector) # List of vgs for the cov matrix
-            # if cml_i==0:
-                # import pdb; pdb.set_trace()
+        self._calc_grid_weights(
+            x_location_vec=self.xgrid.flatten(),
+            y_location_vec=self.ygrid.flatten()
+            )
 
-                    
+    def _calc_grid_weights(self,x_target_vec,y_target_vec):           
         # for idw pixels calcs
         self.pixels_with_neighbors_list = []
         self.idx_weights_pxl_list_all = []
         self.weights_pxl_list_all = []
         self.idx_pxl_single_i_list_all = []
-        for p_i in range(len(self.xgrid.flatten())):
-            px = self.xgrid.flatten()[p_i]
-            py = self.ygrid.flatten()[p_i]
-#            import pdb; pdb.set_trace()
+        for p_i in range(len(x_target_vec)):
+            px = x_target_vec[p_i]
+            py = y_target_vec[p_i]
             # perform basic IDW
             idx_weights_pxl_list = []
             weights_pxl_list = []
@@ -579,3 +585,20 @@ class IdwIterative():
         for i, w_vec_pxl in enumerate(self.weights_pxl_list_all):
             w_vec_pxl = np.array(w_vec_pxl)
             self.sum_of_weights.append(w_vec_pxl.sum(axis=None))
+
+    def _calc_iteration0(self):
+        x_mids = []
+        y_mids = []
+
+        # split each cml into several virtual rain gauges
+        for i, cml in self.df_for_dist.iterrows():
+            x, y = get_gauges_lon_lat(cml['xa'], cml['ya'],
+                                        cml['xb'], cml['yb'],
+                                        G=1)
+            x_mids.append(x)
+            y_mids.append(y)
+
+        # add x, y locations of the virtual rain gauges of each cml
+        df_for_dist['x_mid'] = x_mids
+        df_for_dist['y_mid'] = y_mids
+
