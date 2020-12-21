@@ -388,7 +388,14 @@ class IdwIterative():
                 b = self.df.iloc[cml_vg[0]]['b']
                 theta = cml_new_z**b
                 r = (R**b - (1.0/K)*np.sum(theta) + theta)
-                r[r < 0.0] = 0.0  # set negative rain rates to 0
+                if np.sum(r[r < 0.0]) != 0:
+                    rr = r
+                    ti = np.where(r >= 0.0)[0]
+                    fi = np.where(r < 0.0)[0]
+                    rain_for_dist = sum(rr[fi]) * -1
+                    rain_for_dist_val = rain_for_dist / len(ti)
+                    r[ti] += rain_for_dist_val
+                    r[fi] = 0.0 # set negative rain rates to 0
                 # update the new z values at the cml's virtual gauges
                 self.gauges_z[cml_vg[0], :cml_num_of_gauges] = r**(1.0/b)
 
