@@ -261,14 +261,16 @@ class IdwIterative():
         if self.iteration0:
             self.df['variance'] = 0.0 # setting the variance to zero for iter zero
             print('Processing iteration Zero')
-            self.calc_cmls_from_other_cmls(use_iteration0_weights=True)
+            self.calc_cmls_from_other_cmls(
+                prev_gs=self.gauges_z_prev[:,0],
+                use_iteration0_weights=True
+            )
             self.gauges_z_prev[:, :] = self.gauges_z
             self.gauges_z_list.append(self.gauges_z)
             print('Processing iteration Zero done')
             self.dz_vec = [] 
             dz = np.inf
             print(self.gauges_z)
-        
         # calculate the measurement error variance for each cml
         # these variance values do not change during each iteration
         self.df['variance'] = df.apply(lambda cml: error_variance(cml['A'],
@@ -282,7 +284,7 @@ class IdwIterative():
             print('Running iteration %s' %i)
 
             # perform a single iteration on all the cmls
-            self.calc_cmls_from_other_cmls()
+            self.calc_cmls_from_other_cmls(prev_gs=self.gauges_z_prev)
             print(self.gauges_z)
 
             if self.tolerance > 0.0:
@@ -327,22 +329,26 @@ class IdwIterative():
         # use the max distance between any two cmls as the ROI
         self.ROI = cml_distances.max(axis=None)
 
-    def calc_cmls_from_other_cmls(self, use_iteration0_weights=False):
+    def calc_cmls_from_other_cmls(self, prev_gs ,use_iteration0_weights=False):
         ''' Isolate one cml at a time and compute the influence of other cmls
         in its radius of influence to calculate the rain rate at each of
         the cml's virtual gauges. '''
         if use_iteration0_weights:
             cmls_vg_with_neighbors = self.it0_cmls_vg_with_neighbors_list
-            cml_vg_roi = self.it0_cml_vg_roi_list_all
-            cml_vg_roi_single_i = self.it0_cml_vg_roi_single_i_list_all
+            cml_vg_neighbors = self.it0_cml_vg_roi_list_all
+            vgs_idx_neighbors = self.it0_cml_vg_roi_single_i_list_all
             weights_vg = self.it0_weights_vg_list
         else:
             cmls_vg_with_neighbors = self.cmls_vg_with_neighbors_list
-            cml_vg_roi = self.cml_vg_roi_list_all
-            cml_vg_roi_single_i = self.cml_vg_roi_single_i_list_all
+            cml_vg_neighbors = self.cml_vg_roi_list_all
+            vgs_idx_neighbors = self.cml_vg_roi_single_i_list_all
             weights_vg = self.weights_vg_list
         # compute the rain rate at each gauge of a cml (with index cml_i)
         # using the rain rate of virtual gauges from all the OTHER cmls
+        print(cmls_vg_with_neighbors)
+        print(cml_vg_neighbors)
+        print(vgs_idx_neighbors)
+        print(weights_vg)
         try:
             cml_prev = cmls_vg_with_neighbors[0][0]
         except:
@@ -352,53 +358,44 @@ class IdwIterative():
         cml_new_z = np.zeros((cml_num_of_gauges,))
         last_i = len(cmls_vg_with_neighbors)-1
         for i, cml_vg in enumerate(cmls_vg_with_neighbors):
-            # Apply formula (20) from paper to compute the rain rate vector
             if cml_vg[0] != cml_prev:
-                K = cml_num_of_gauges
-                R = self.df.iloc[cml_prev]['R']
-                b = self.df.iloc[cml_prev]['b']
-                theta = cml_new_z**b
-                r = (R**b - (1.0/K)*np.sum(theta) + theta)
-                if np.sum(r[r < 0.0]) != 0:
-                    rr = r.copy()
-                    ti = np.where(r >= 0.0)[0]
-                    fi = np.where(r < 0.0)[0]
-                    rain_for_dist = sum(rr[fi]) * -1
-                    rain_for_dist_val = rain_for_dist / len(ti)
-                    r[ti] += rain_for_dist_val
-                    r[fi] = 0.0 # set negative rain rates to 0
-    
-                # update the new z values at the cml's virtual gauges
-                self.gauges_z[cml_prev, :cml_num_of_gauges] = r**(1.0/b)
-                # initial new virtual gauge rain vector for current cml
+                import pdb; pdb.set_trace()
+                self.gauges_z[cml_prev, :cml_num_of_gauges] = \
+                    self._la_grange_mult(
+                        K=cml_num_of_gauges,
+                        R = self.df.iloc[cml_prev]['R'],
+                        b = self.df.iloc[cml_prev]['b'],
+                        cml_vg=cml_vg,
+                        cml_new_z=cml_new_z
+                    )
                 cml_num_of_gauges = self.df.iloc[cml_vg[0]]['num_of_gauges']
                 cml_new_z = np.zeros((cml_num_of_gauges,))
                 cml_prev = cml_vg[0]
 
             # variances and number of gauges of cmls in ROI
             neighbor_cmls = []
-            for _, k in enumerate(cml_vg_roi[i]):
+            for _, k in enumerate(cml_vg_neighbors[i]):
                 neighbor_cmls.append(k[0])
 #                gauges_in_ROI.append(k[1])
             neighbor_cmls = list(set(neighbor_cmls))
             variances = self.df['variance'][neighbor_cmls].values
 
             # Initialize a covariance matrix to zero
-            M = len(cml_vg_roi[i])  # total number of gauges in ROI
+            M = len(cml_vg_neighbors[i])  # total number of gauges in ROI
             cov = np.zeros((M, M))
 
-            neighbor_cmls_count_temp = [q[0] for q in cml_vg_roi[i]]
-            count = Counter(neighbor_cmls_count_temp)
-            dictionary_items = count.items()
-            d_count = dict(sorted(dictionary_items))
-            
-            # add measurement quantization error to the cov matrix
-            stop = 0
-            for ic, c in enumerate(d_count):
-            # for tt, sigma in enumerate(variances):
-                start = stop
-                stop = start + d_count[c]
-                cov[start:stop, start:stop] = variances[ic]
+            if use_iteration0_weights is False:
+                neighbor_cmls_count_temp = [q[0] for q in cml_vg_neighbors[i]]
+                count = Counter(neighbor_cmls_count_temp)
+                dictionary_items = count.items()
+                d_count = dict(sorted(dictionary_items))
+                
+                # add measurement quantization error to the cov matrix
+                stop = 0
+                for ic, c in enumerate(d_count):
+                    start = stop
+                    stop = start + d_count[c]
+                    cov[start:stop, start:stop] = variances[ic]
             # add IDW weights to covariance matrix
             z = 1.0
             W = z*np.diagflat(1.0/weights_vg[i])  # 1/weights on diagonal
@@ -408,28 +405,38 @@ class IdwIterative():
             cov_inv = np.linalg.inv(cov)
             cov_inv_sum = cov_inv.sum(axis=None)  # sum of all elements
             cov_inv_col_sum = cov_inv.sum(axis=0)
-            prev_theta = np.take(self.gauges_z_prev, \
-                                 cml_vg_roi_single_i[i])
+            prev_theta = np.take(prev_gs,
+                vgs_idx_neighbors[i]
+            ) # self.gauges_z_prev
             nominator = (cov_inv_col_sum * prev_theta).sum()
             cml_new_z[cml_vg[1]] = nominator / cov_inv_sum
+            print(nominator)
+            print(cov_inv_sum)
             
-            # Apply formula (20) from paper to compute the rain rate vector
             if i == last_i:
-                K = cml_num_of_gauges
-                R = self.df.iloc[cml_vg[0]]['R']
-                b = self.df.iloc[cml_vg[0]]['b']
-                theta = cml_new_z**b
-                r = (R**b - (1.0/K)*np.sum(theta) + theta)
-                if np.sum(r[r < 0.0]) != 0:
-                    rr = r
-                    ti = np.where(r >= 0.0)[0]
-                    fi = np.where(r < 0.0)[0]
-                    rain_for_dist = sum(rr[fi]) * -1
-                    rain_for_dist_val = rain_for_dist / len(ti)
-                    r[ti] += rain_for_dist_val
-                    r[fi] = 0.0 # set negative rain rates to 0
-                # update the new z values at the cml's virtual gauges
-                self.gauges_z[cml_vg[0], :cml_num_of_gauges] = r**(1.0/b)
+                print('asdfasdfasdfasdfasdfasdfasdfasdfasdfsadfsdf')
+                self.gauges_z[cml_vg[0], :cml_num_of_gauges] = self._la_grange_mult(
+                    K=cml_num_of_gauges,
+                    R=self.df.iloc[cml_vg[0]]['R'],
+                    b=self.df.iloc[cml_vg[0]]['b'],
+                    cml_vg=cml_vg,
+                    cml_new_z=cml_new_z
+                )
+
+    def _la_grange_mult(self,K,R,b,cml_vg,cml_new_z):
+        '''Apply formula (20) from paper to compute the rain rate vector'''
+        theta = cml_new_z**b
+        r = (R**b - (1.0/K)*np.sum(theta) + theta)
+        ## distribute negative rs to other vrgs
+        if np.sum(r[r < 0.0]) != 0:  
+            rr = r
+            ti = np.where(r >= 0.0)[0]
+            fi = np.where(r < 0.0)[0]
+            rain_for_dist = sum(rr[fi]) * -1
+            rain_for_dist_val = rain_for_dist / len(ti)
+            r[ti] += rain_for_dist_val
+            r[fi] = 0.0 # set negative rain rates to 0
+        return r**(1.0/b)
 
     def calc_grid_from_cmls(self):
         ''' calculate the z values of each grid point using z values of the
@@ -454,13 +461,10 @@ class IdwIterative():
         self.use_gauges = np.zeros((self.num_cmls, self.max_num_of_gauges),
                                    dtype=bool)
 
-        # self.cml_lengths = np.zeros(self.use_gauges.shape)
         self.cml_lengths = np.tile(self.df_for_dist['L'].values,
             (self.max_num_of_gauges,1)).transpose()*float(self.restrain_w)
-        # self.gauges_x = np.zeros(self.use_gauges.shape)
         self.gauges_x = np.empty(self.use_gauges.shape)
         self.gauges_x[:] = np.nan 
-        # self.gauges_y = np.zeros(self.use_gauges.shape)
         self.gauges_y = np.empty(self.use_gauges.shape)
         self.gauges_y[:] = np.nan 
         
@@ -632,20 +636,13 @@ class IdwIterative():
         ## gmz calcs:
         num_cmls = self.df_for_dist.shape[0]
         ## compute the number of virtual gauges for each cml
-        # self.df_for_dist['num_of_gauges_it0'] = 1
-        ##############################
-        ### check next row ###########
-        ##############################
-        use_gauges_it0 = np.ones((num_cmls, 1),
+        it0_use_gauges = np.ones((num_cmls, 1),
                                    dtype=bool)
-        gauges_x_it0 = np.empty(use_gauges_it0.shape)
+        gauges_x_it0 = np.empty(it0_use_gauges.shape)
         gauges_x_it0[:] = np.nan 
-        gauges_y_it0 = np.empty(use_gauges_it0.shape)
+        gauges_y_it0 = np.empty(it0_use_gauges.shape)
         gauges_y_it0[:] = np.nan 
         
-        ##############################
-        ### amend ###########
-        ##############################
         self.it0_cmls_vg_with_neighbors_list = []
         self.it0_cml_vg_roi_list_all = []
         self.it0_cml_vg_roi_single_i_list_all = []
@@ -677,7 +674,7 @@ class IdwIterative():
                                             self.method, 
                                             self.p_par,
                                             cml_lengths=np.zeros(distances.shape))
-                # weights = weights * use_gauges_it0
+                # weights = weights * it0_use_gauges
                 weights[cml_i, :] = 0.0  # remove weights for current cml
                 weights[weights < weights.max()/1000.0] = 0.0
 
@@ -688,11 +685,8 @@ class IdwIterative():
                 # exclude current cml from all further calculations
                 cmls_in_ROI[cml_i] = False
                 gauges_in_ROI[cml_i, :] = False
-#############################################################
-######## until here i understand what is going on ###########
-#############################################################
                 # select the indices of cml gauges (only in the ROI)
-                select_gauges = gauges_in_ROI# * use_gauges_it0
+                select_gauges = gauges_in_ROI# * it0_use_gauges
                 if select_gauges.sum() != 0:
                     self.it0_cmls_vg_with_neighbors_list.append((cml_i, gauge_i))
                     for row in range(len(select_gauges[:,0])):
@@ -716,17 +710,3 @@ class IdwIterative():
                 if len(weights_vector) != 0:
                     weights_vector /= weights_vector.sum(axis=None)  # Normalize
                     self.it0_weights_vg_list.append(weights_vector) # List of vgs for the cov matrix
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
