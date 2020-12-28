@@ -255,7 +255,6 @@ class IdwIterative():
         # run multiple iterations to find the virtual gauge values
         self.dz_vec = []
         dz = np.inf  # change in virtual gauge values
-        print(self.gauges_z)
         self.gauges_z_list = []
         ## run iter 0 using the weights calculated in __init__
         if self.iteration0:
@@ -270,7 +269,6 @@ class IdwIterative():
             print('Processing iteration Zero done')
             self.dz_vec = [] 
             dz = np.inf
-            print(self.gauges_z)
         # calculate the measurement error variance for each cml
         # these variance values do not change during each iteration
         self.df['variance'] = df.apply(lambda cml: error_variance(cml['A'],
@@ -345,10 +343,6 @@ class IdwIterative():
             weights_vg = self.weights_vg_list
         # compute the rain rate at each gauge of a cml (with index cml_i)
         # using the rain rate of virtual gauges from all the OTHER cmls
-        print(cmls_vg_with_neighbors)
-        print(cml_vg_neighbors)
-        print(vgs_idx_neighbors)
-        print(weights_vg)
         try:
             cml_prev = cmls_vg_with_neighbors[0][0]
         except:
@@ -359,7 +353,6 @@ class IdwIterative():
         last_i = len(cmls_vg_with_neighbors)-1
         for i, cml_vg in enumerate(cmls_vg_with_neighbors):
             if cml_vg[0] != cml_prev:
-                import pdb; pdb.set_trace()
                 self.gauges_z[cml_prev, :cml_num_of_gauges] = \
                     self._la_grange_mult(
                         K=cml_num_of_gauges,
@@ -410,11 +403,8 @@ class IdwIterative():
             ) # self.gauges_z_prev
             nominator = (cov_inv_col_sum * prev_theta).sum()
             cml_new_z[cml_vg[1]] = nominator / cov_inv_sum
-            print(nominator)
-            print(cov_inv_sum)
             
             if i == last_i:
-                print('asdfasdfasdfasdfasdfasdfasdfasdfasdfsadfsdf')
                 self.gauges_z[cml_vg[0], :cml_num_of_gauges] = self._la_grange_mult(
                     K=cml_num_of_gauges,
                     R=self.df.iloc[cml_vg[0]]['R'],
