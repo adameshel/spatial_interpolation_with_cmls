@@ -424,13 +424,14 @@ class IdwIterative():
                     cml_vg=cml_vg,
                     cml_new_z=cml_new_z
                 )
-
     def _la_grange_mult(self,K,R,b,cml_vg,cml_new_z):
         '''Apply formula (20) from paper to compute the rain rate vector'''
         theta = cml_new_z**b
         r = (R**b - (1.0/K)*np.sum(theta) + theta)
+        # r[r < 0.0] = 0.0
         ## distribute negative rs to other vrgs
         if np.sum(r[r < 0.0]) != 0:  
+            print('NEGATIVE')
             rr = r
             ti = np.where(r >= 0.0)[0]
             fi = np.where(r < 0.0)[0]
