@@ -624,7 +624,7 @@ class IdwIterative():
         y_mids = []
 
         # split each cml into several virtual rain gauges
-        for i, cml in self.df_for_dist.iterrows():
+        for _, cml in self.df_for_dist.iterrows():
             x, y = get_gauges_lon_lat(cml['xa'], cml['ya'],
                                         cml['xb'], cml['yb'],
                                         G=1)
