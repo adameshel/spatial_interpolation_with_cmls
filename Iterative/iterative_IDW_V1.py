@@ -428,17 +428,17 @@ class IdwIterative():
         '''Apply formula (20) from paper to compute the rain rate vector'''
         theta = cml_new_z**b
         r = (R**b - (1.0/K)*np.sum(theta) + theta)
-        # r[r < 0.0] = 0.0
+        r[r < 0.0] = 0.0
         ## distribute negative rs to other vrgs
-        if np.sum(r[r < 0.0]) != 0:  
-            print('NEGATIVE')
-            rr = r
-            ti = np.where(r >= 0.0)[0]
-            fi = np.where(r < 0.0)[0]
-            rain_for_dist = sum(rr[fi]) * -1
-            rain_for_dist_val = rain_for_dist / len(ti)
-            r[ti] += rain_for_dist_val
-            r[fi] = 0.0 # set negative rain rates to 0
+        # if np.sum(r[r < 0.0]) != 0:  
+        #     print('NEGATIVE')
+        #     rr = r
+        #     ti = np.where(r >= 0.0)[0]
+        #     fi = np.where(r < 0.0)[0]
+        #     rain_for_dist = sum(rr[fi]) * -1
+        #     rain_for_dist_val = rain_for_dist / len(ti)
+        #     r[ti] += rain_for_dist_val
+        #     r[fi] = 0.0 # set negative rain rates to 0
         return r**(1.0/b)
 
     def calc_grid_from_cmls(self):
