@@ -88,7 +88,7 @@ def create_virtual_gauges(df,
     # split each cml into several virtual rain gauges
     for i, cml in df.iterrows():
         if num_gauges is None:
-            num_gauges_along_cml = int(np.ceil(L / float(gauge_length)))
+            num_gauges_along_cml = int(np.ceil(cml['L'] / float(gauge_length)))
 #            vrgs_per_cml = 'ed' + str(round(gauge_length,2))
             vrgs_per_cml = 'ED' + str(int(gauge_length * 1e3))
         else:
@@ -168,7 +168,11 @@ class IdwIterative():
     def __init__(self, df_for_dist, xgrid, ygrid, ROI=0.0, max_iterations=1, 
                  tolerance=0.0, method=0, p_par=2.0, fixed_gmz_roi=None, restrain_w=False,
                  iteration0=False):
-        '''ROI- Radius of Influence in meters. A parameter of IDW'''
+        '''ROI- Radius of Influence in meters. A parameter of IDW
+        non-necessary variables:
+        self.gauges_z_list
+        
+        '''
         self.df_for_dist = df_for_dist
         self.ROI = ROI
         self.ROI_gmz = ROI
@@ -184,6 +188,8 @@ class IdwIterative():
         self.iteration0 = iteration0
 
         self.df_for_dist['num_of_gauges'] = self.df_for_dist['x'].apply(len)
+        # True for equidistant gauge distribution 
+        self.ed_bool = self.df_for_dist.num_of_gauges.is_unique 
         if self.iteration0:
             print('Calculating weights for Iteration Zero')
             self._calc_iteration0()
@@ -283,14 +289,20 @@ class IdwIterative():
 
             # perform a single iteration on all the cmls
             self.calc_cmls_from_other_cmls(prev_gs=self.gauges_z_prev)
-            print(self.gauges_z)
 
             if self.tolerance > 0.0:
-                diff_norm = np.linalg.norm(self.gauges_z - self.gauges_z_prev,
+                if self.ed_bool:
+                    gauges_z_no_nans = self.gauges_z[~np.isnan(self.gauges_z)]
+                    gauges_z_prev_no_nans = self.gauges_z_prev[~np.isnan(self.gauges_z_prev)]
+                else:
+                    gauges_z_no_nans = self.gauges_z
+                    gauges_z_prev_no_nans = self.gauges_z_prev
+                diff_norm = np.linalg.norm(gauges_z_no_nans - gauges_z_prev_no_nans,
                                            axis=None)
-                prev_norm = np.linalg.norm(self.gauges_z_prev, axis=None)
+                prev_norm = np.linalg.norm(gauges_z_prev_no_nans, axis=None)
                 dz = float(diff_norm)/(prev_norm + 1e-10)
                 self.dz_vec.append(dz)
+                print(prev_norm)
 #                print('Norm change in Z values: {}'.format(dz))
                 if dz <= self.tolerance:
                     break
