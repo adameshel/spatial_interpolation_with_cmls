@@ -323,7 +323,7 @@ class IdwIterative():
         ''' Calculate the radius of influence by measuring the largest
         distance between any two cmls. '''
 
-        # calculate the coordinates of each cml's center point
+        ## calculate the coordinates of each cml's center point
         cml_x_middle = self.df['x'].apply(lambda x: np.mean(x)).values
         cml_y_middle = self.df['y'].apply(lambda y: np.mean(y)).values
 
@@ -331,11 +331,11 @@ class IdwIterative():
                                             cml_y_middle.reshape(-1, 1)),
                                            axis=1)
         dests = cml_coords_middle
-        # calculate the distance between every pair of cmls
+        ## calculate the distance between every pair of cmls
         subts = cml_coords_middle[:, None, :] - dests
         cml_distances = np.sqrt(np.einsum('ijk,ijk->ij', subts, subts))
 
-        # use the max distance between any two cmls as the ROI
+        ## use the max distance between any two cmls as the ROI
         self.ROI = cml_distances.max(axis=None)
 
     def calc_cmls_from_other_cmls(self, prev_gs ,use_iteration0_weights=False):
