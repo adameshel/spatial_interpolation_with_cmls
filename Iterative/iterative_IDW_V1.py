@@ -412,7 +412,7 @@ class IdwIterative():
             cov_inv_col_sum = cov_inv.sum(axis=0)
             prev_theta = np.take(prev_gs,
                 vgs_idx_neighbors[i]
-            ) # self.gauges_z_prev
+            ) 
             nominator = (cov_inv_col_sum * prev_theta).sum()
             cml_new_z[cml_vg[1]] = nominator / cov_inv_sum
             
@@ -450,7 +450,6 @@ class IdwIterative():
                                self.idx_pxl_single_i_list_all[i])
             Z_flat[p_i] = (self.weights_pxl_list_all[i] * gauges_i).sum()/\
             self.sum_of_weights[i]
-#            else:
         Z_flat[Z_flat <= 0] = np.nan
         self.Z = Z_flat.reshape((self.xgrid.shape[0], self.xgrid.shape[1]))
         
