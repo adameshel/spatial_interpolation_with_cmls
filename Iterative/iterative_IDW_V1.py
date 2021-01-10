@@ -331,7 +331,6 @@ class IdwIterative():
                                             cml_y_middle.reshape(-1, 1)),
                                            axis=1)
         dests = cml_coords_middle
-
         # calculate the distance between every pair of cmls
         subts = cml_coords_middle[:, None, :] - dests
         cml_distances = np.sqrt(np.einsum('ijk,ijk->ij', subts, subts))
