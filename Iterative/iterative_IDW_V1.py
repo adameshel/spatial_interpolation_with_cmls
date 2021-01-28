@@ -148,6 +148,7 @@ def calc_grid_weights(D, ROI, method, p_par, cml_lengths):
     ''' calculate shepard IDW coefficients/weights (for mapping)
     with radius of influence ROI. Formula (22) from paper. '''
     w = np.zeros(D.shape)
+    D[np.isnan(D)] = ROI # save runtime due to nans
     D[D < 0.001] = 0.001
     if method==0:
         # restrain_term = 2.0*float(np.logical_not(cml_lengths>0)) + \
