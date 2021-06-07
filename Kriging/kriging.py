@@ -14,9 +14,7 @@ from scipy.spatial.distance import pdist, squareform
 from scipy.optimize import curve_fit
 import sys
 import math
- 
-
-from pykrige.ok import OrdinaryKriging
+ from pykrige.ok import OrdinaryKriging
 import gstools as gs
 
 
