@@ -14,9 +14,7 @@ from scipy.spatial.distance import pdist, squareform
 from scipy.optimize import curve_fit
 import sys
 import math
- from pykrige.ok import OrdinaryKriging
-import gstools as gs
-
+from pykrige.ok import OrdinaryKriging
 
 def SVh( P, h, bw ):
     '''
@@ -351,7 +349,8 @@ optimize: Bool. Optimize kriging parameters or not.
                               [np.abs(x_grid_utm[1,0]-x_grid_utm[0,0]) + \
                                dist_spacer + np.mean(x_grid_utm[:,0]),
                                 np.abs(y_grid_utm[1,0]-y_grid_utm[0,0]) + \
-                                dist_spacer + np.mean(y_grid_utm[:,0])]] )
+                                dist_spacer + np.mean(y_grid_utm[:,0])]] 
+                                )
     
             dist_temp = squareform(pdist( df_p[['x','y']] ))
             # loop over the upper part of the dist matrix
